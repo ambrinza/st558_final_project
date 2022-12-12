@@ -162,7 +162,7 @@ shinyServer(function(input, output) {
     pred_rf <- predict(fit_rf, newdata = pred_vals)
     pred_bt <- predict(fit_bt, newdata = pred_vals)
     rbind(cbind(method = "Logistic Regression", prediction = ifelse(pred_lr ==1,"Transferred","Adopted")),
-          cbind(method = "Random Forest", prediction = pred_rf),
+          cbind(method = "Random Forest", prediction = ifelse(pred_rf ==1,"Transferred","Adopted")),
           cbind(method = "Boosting Trees", prediction = ifelse(pred_bt ==1,"Transferred","Adopted")))
   })
   
