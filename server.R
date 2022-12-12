@@ -1,22 +1,23 @@
 library(shiny)
 library(caret)
 library(tidyverse)
+library(gbm)
 
 df <- read.csv('data/Austin_Animal_Center_Outcomes.csv')
 
 # Cleaning the data before it will be used in the shiny app for EDA
 
-df <- df %>% 
+df <- df %>% separate(MonthYear, c("Month", "Year")) %>%
   mutate(Name = gsub("\\*", "",Name), 
          Outcome.Type = ifelse(Outcome.Type == "Rto-Adopt", "Return to Owner", Outcome.Type),
-         Age = ifelse(grepl("month",Age.upon.Outcome), 0,as.numeric(sub(" .*", "", Age.upon.Outcome)))) %>%
-  separate(MonthYear, c("Month", "Year"))  %>%  filter(Name != "", Age >= 0, Outcome.Type != "",
-                                                       Sex.upon.Outcome != "NULL")
+         Age = ifelse(grepl("month",Age.upon.Outcome), 0,as.numeric(sub(" .*", "", Age.upon.Outcome))),
+         Year = as.numeric(Year), Month = match(Month, month.abb)) %>%
+      filter(Name != "", Age >= 0, Outcome.Type != "", Sex.upon.Outcome != "NULL")
 
 # Cleaning the data for modelling
 df_models <- df %>% 
   filter(Outcome.Type %in% c("Adoption", "Transfer")) %>%
-  mutate(Is.Adopted = ifelse(Outcome.Type == "Adoption", 1, 0)) #FIXME
+  mutate(Is.Adopted = ifelse(Outcome.Type == "Adoption", 1, 0))
 
 shinyServer(function(input, output) {
   # Create bar plot based on selection
@@ -72,38 +73,97 @@ shinyServer(function(input, output) {
     
   })
   
-  # # Finding the index for the training split based on user input
-  # train_index <- createDataPartition(df_models$Is.Adopted, times = 1, p = get(input$train_prop))
-  # 
-  # # Splitting the data
-  # df_train <- df_models[train_index,]
-  # df_test  <- df_models[-train_index,]
-  # 
-  # # Fitting the relevant model
-  # if(input$model_choice == "Logistic Regression"){
-  #   # Dummify the relevant variables #FIXME - how to do this only for cat vars?
-  #   dummies <- dummyVars(get(input$predictors), data = df_train)
-  #   df_dmy <- data.frame(predict(dummies, newdata = df_train))
-  #   df_log_reg <- cbind(df_dmy, df_train) %>% select(-get(input$predictors))
-  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_log_reg,
-  #                method = "glm", trControl = trainControl(method = "cv", number = 5), 
-  #                preProcess = c("center", "scale")) #FIXME - right method
-  # } else if(input$model_choice == "Random Forest"){
-  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_train, method
-  #                = "rf", trControl = trainControl(method = "cv", number = 5), 
-  #                preProcess = c("center", "scale"))
-  # } else if(input$model_choice == "Boosted Trees"){
-  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_train, method
-  #                = "gbm", trControl = trainControl(method = "cv", number = 5), 
-  #                preProcess = c("center", "scale"))
-  # }
-  # 
-  # output$fit_statistics_train <- renderDataTable({
-  #   summary(fit)
-  # })
-  # output$confusion_matrix <- renderDataTable({
+  # Only run model code when the button is clicked
+  model_fits <- eventReactive(input$model_run, {
+    # Finding the index for the training split based on user input
+    train_index <- createDataPartition(df_models$Is.Adopted, times = 1, p = input$train_prop/100,
+                                       list = FALSE)
+    # Splitting the data
+    df_train <- df_models[train_index,]
+    df_test  <- df_models[-train_index,]
+    df_train_select <- cbind(df_train[,input$predictors], df_train$Is.Adopted) %>%
+      rename(Is.Adopted = `df_train$Is.Adopted`) %>%
+      mutate(Is.Adopted = as.factor(Is.Adopted))
+    df_test_select <- cbind(df_test[,input$predictors], df_test$Is.Adopted) %>%
+      rename(Is.Adopted = `df_test$Is.Adopted`) %>%
+      mutate(Is.Adopted = as.factor(Is.Adopted))
+    # Fitting the relevant model
+    withProgress(message = "Fitting models",{
+      fit_lr <- train(Is.Adopted ~ ., data = df_train_select,
+                   method = "glm", family = "binomial",
+                   trControl = trainControl(method = "cv", number = 5),
+                   preProcess = c("center", "scale"))
+      # Increment the progress bar, and update the detail text.
+      incProgress(1/3, detail = "Finished training Logistic Regression")
+      fit_rf <- train(Is.Adopted ~ ., data = df_train_select, method
+                   = "rf", trControl = trainControl(method = "cv", number = 5),
+                   preProcess = c("center", "scale"))
+      incProgress(2/3, detail = "Finished training Random Forest")
+      fit_bt <- train(Is.Adopted ~ ., data = df_train_select, method
+                   = "gbm", trControl = trainControl(method = "cv", number = 5),
+                   preProcess = c("center", "scale"), verbose = FALSE)
+    })
+    list(fit_lr = fit_lr, fit_rf = fit_rf, fit_bt = fit_bt)
+  })
+  
+  output$fit_statistics <- renderTable({
+    .tmp <- model_fits()
+    fit_lr <- .tmp$fit_lr
+    fit_rf <- .tmp$fit_rf
+    fit_bt <- .tmp$fit_bt
+    fit_lr_res <- cbind(method = "Logistic Regression",fit_lr$results)
+    fit_rf_res <- cbind(method ="Random Forest", fit_rf$results %>% slice_max(Accuracy, n=1) %>%
+                            rename(parameter = mtry))
+    fit_bt_res <- cbind(method = "Boosting", fit_bt$results %>% slice_max(Accuracy, n=1) %>%
+                            select(n.trees,Accuracy, Kappa, AccuracySD, KappaSD) %>%
+                            rename(parameter = n.trees))
+    rbind(fit_lr_res, fit_rf_res, fit_bt_res)
+  })
+
+  output$var_imp_rf <- renderPlot({
+    .tmp <- model_fits()
+    fit_rf <- .tmp$fit_rf
+    plot(varImp(fit_rf))
+  })
+  output$var_imp_bt <- renderPlot({
+    .tmp <- model_fits()
+    fit_bt <- .tmp$fit_rf
+    plot(varImp(fit_bt))
+  })
+
+  # output$cm_lr <- renderPrint({
   #   # Now checking performance of the model
-  #   confusionMatrix(data = df_test$Is.Adopted, reference = predict(fit, newdata = df_test))
+  #   cm_lr <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+  #                             reference = predict(fit_lr, newdata = df_test_select))
+  #   cm_lr$table
   # })
+  # output$cm_rf <- renderPrint({
+  #   # Now checking performance of the model
+  #   cm_rf <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+  #                             reference = predict(fit_rf, newdata = df_test_select))
+  #   cm_rf$table
+  # })
+  # output$cm_bt <- renderPrint({
+  #   # Now checking performance of the model
+  #   cm_bt <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+  #                             reference = predict(fit_bt, newdata = df_test_select))
+  #   cm_bt$table
+  # })
+  output$fit_statistics_test <- renderTable({
+    .tmp <- model_fits()
+    fit_lr <- .tmp$fit_lr
+    fit_rf <- .tmp$fit_rf
+    fit_bt <- .tmp$fit_bt
+    cm_lr <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+                              reference = predict(fit_lr, newdata = df_test_select))
+    cm_rf <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+                              reference = predict(fit_lr, newdata = df_test_select))
+    cm_bt <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+                              reference = predict(fit_lr, newdata = df_test_select))
+    rbind(cbind(method = "Logistic Regression", cm_lr$byClass),
+          cbind(method = "Random Forest", cm_rf$byClass),
+          cbind(method = "Boosting Trees", cm_bt$byClass))
+  })
+    
   
 })

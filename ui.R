@@ -1,5 +1,5 @@
-library(caret)
 library(shiny)
+library(mathjaxr)
 
 shinyUI(fluidPage(
   navbarPage("Exploring Austin Animal Center Data",
@@ -92,57 +92,95 @@ shinyUI(fluidPage(
                         ))
                       ),
              tabPanel("Modelling",
+                      sidebarLayout(
+                        sidebarPanel(
+                          conditionalPanel(condition = "input$main_panel_models == 2 |
+                                           input$main_panel_models == 3",
+                            h4("Model Specifications"),
+                            numericInput("train_prop", "Training Proportion", min = 0, max = 99,
+                                         value = 80),
+                            checkboxGroupInput("predictors","Select the predictor variables",
+                                                choices = list("Animal.Type", "Month", "Year",
+                                                               "Sex.upon.Outcome", "Age")),
+                            actionButton("model_run", "Run Model"),
+                            conditionalPanel(condition = "input$main_panel_models == 3",
+                                             h4("Select Predictor Values for Prediction"),
+                                conditionalPanel(condition = "'Age' %in% input$predictors"),
+                                numericInput("age_value", "Insert Age", min = 0, max = 30,
+                                             value = 1))
+                            ))
+                        ,
                         mainPanel(
-                          h3("Modelling Info"),
-                          "In this section, we will explore three different
-                          supervised learning models.",
-                          h4("Logistic Regression"),
-                          "The first model will be a classic logistic regression model in order to predict
-                          the adoption outcome. In order to make the model more manageable,
-                          it will focus on only two outcomes - adoption or transfer, where adoption will
-                          be considered to be the 'success'. Logistic regression works by 
-                          The benefits of a logistic regression model is that it
-                          is low-cost for running, easier to interpret than some of the other classification models
-                          . The drawbacks are that logistic regression requires a lot of assumptions about 
-                          the data and its distribution, which might not necessarily be met. In addition, any other
-                          categorical variables need to be one-hot encoded, additional data cleaning that is not
-                          necessary for every other model.", #FIXME - check if this is true
-                          h4("Random Forest"),
-                          "The next model will be a random forest model. Random forest is an extension of
-                          a bagged classification model, where it creates multiple trees from bootstrap samples,
-                          but it only uses a subset of predictors for each tree. The benefits of random forest
-                          is that it does not rely on the assumptions that logistic regression does, and if there
-                          is a feature that has a high correlation with the outcome variable, the random forest
-                          method accounts for that using the predictor subsetting method, meaning the resulting
-                          trees will a higher reduction in variance overall, resulting in better predictions. The
-                          drawbacks of random forest are that it is less interpretable than logistic regression
-                          or a single tree, since trees are aggregated together, and it takes a higher computing
-                          power.", #FIXME - add in math
-                          h4("Boosting Trees"),
-                          "The last classification model considered is a boosting tree model. Boosting trees work 
-                          by first creating one classification tree, and then grow trees sequentially from that, 
-                          updating predictions as the trees grow. This often works better than random forest and
-                          bagging since the trees are grown in a sequence. A drawback of boosting is, similar to
-                           random forest, the results are less interpretable and it requires a higher computing
-                          power." #FIXME - add in math
-                        ),
-                      # sidebarLayout(
-                      #   sidebarPanel(
-                      #     h4("<Model Specifications"),
-                      #     numericInput("train_prop", "Training Proportion", min = 0, max = 99,
-                      #                  value = 80),
-                      #     selectInput("model_choice","Choose a model", 
-                      #                 choices = list("Logistic Regression", "Random Forest",
-                      #                                "Boosting Trees")),
-                      #     
-                      #     checkboxGroupInput("predictors","Select the predictor variables",
-                      #                         choices = list("Animal.Type")) #FIXME - make this based on the data)
-                      #                      )
-                      #   #FIXME - Add button to make it run
-                      #   ,
-                      #   mainPanel(
-                      #   )
-                      # )
+                          tabsetPanel(type = "tabs",
+                                      tabPanel("Modeling Info",
+                                               withMathJax(),
+                                               h3("Modelling Info"),
+                                               "In this section, we will explore three different
+                                               supervised learning models.",
+                                               h4("Logistic Regression"),
+                                               "The first model will be a classic logistic regression
+                                               model inorder to predict the adoption outcome. In order 
+                                               to make the model more manageable, it will focus on only two
+                                               outcomes - adoption or transfer, where adoption will
+                                               be considered to be the 'success'. Logistic regression works 
+                                               by finding the probability of success, found by the formula below",
+                                               helpText("$$\\frac{e^{\\beta_0+\\beta_1x}}{1 + e^{\\beta_0
+                                                        +\\beta_1x}}$$"),
+                                               "The benefits of a logistic regression model is that it
+                                               is low-cost for running, easier to interpret than some of the other
+                                               classification models. The drawbacks are that logistic regression
+                                               requires a lot of assumptions about the data and its distribution,
+                                               which might not necessarily be met.",
+                                               h4("Random Forest"),
+                                               "The next model will be a random forest model. Random forest is an
+                                               extension of a bagged classification model, where it creates
+                                               multiple trees from bootstrap samples,but it only uses a subset of
+                                               predictors for each tree, typically",
+                                               helpText("m = \\(\\sqrt{p}\\) predictors for classification."),
+                                               "The benefits of random forest is that it does not rely on the
+                                               assumptions that logistic regression does, and if there is a 
+                                               feature that has a high correlation with the outcome variable, 
+                                               the random forest method accounts for that using the predictor
+                                               subsetting method, meaning the resulting trees will a higher
+                                               reduction in variance overall, resulting in better predictions. The
+                                               drawbacks of random forest are that it is less interpretable than
+                                               logistic regression or a single tree, since trees are aggregated
+                                               together, and it takes a higher computing power.",
+                                               h4("Boosting Trees"),
+                                               "The last classification model considered is a boosting tree model.
+                                               Boosting trees work by first creating one classification tree, and
+                                               then grow trees sequentially from that, updating predictions as the
+                                               trees grow. This often works better than random forest and bagging
+                                               since the trees are grown in a sequence. The drawbacks of boosting
+                                               are, similar to random forest, the results are less interpretable
+                                               and it requires a higher computing power.", value = 1),
+                                      tabPanel("Model Fitting",
+                                               h4("Fit Statistics From Training Data"),
+                                               tableOutput("fit_statistics"),
+                                               fluidRow(h4("Variable Importance Plots"),
+                                                 column(width = 6,
+                                                        "Random Forest",
+                                                        plotOutput("var_imp_rf")),
+                                                 column(width = 6,
+                                                        "Boosting Trees",
+                                                        plotOutput("var_imp_bt"))
+                                               ),
+                                               # fluidRow(
+                                               #   column(width = 5,
+                                               #          h4("Logistic Regression Confusion Matrix"),
+                                               #          verbatimTextOutput("cm_lr")),
+                                               #   column(width = 5,
+                                               #          h4("Random Forest Confusion Matrix"),
+                                               #          verbatimTextOutput("cm_rf")),
+                                               #   column(width = 5,
+                                               #          h4("Boosting Trees Confusion Matrix"),
+                                               #          verbatimTextOutput("cm_bt"))
+                                               h4("Test Fit Statistics"),
+                                               renderTable("fit_statistics_test"),
+                                               value = 2),
+                                      tabPanel("Prediction"),
+                                      id = "main_panels_models")
+                      )
                       )
                       ),
              tabPanel("Data")
@@ -156,4 +194,4 @@ shinyUI(fluidPage(
   #   )
   # )
   
-)
+))
