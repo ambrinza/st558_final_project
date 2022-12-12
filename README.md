@@ -21,5 +21,6 @@ install.packages(pkgs)
 ```
 
 # Code to Run
-runGitHub(repo = "ambrinza/st558_final_project")
-The shiny::runGitHub() code that we can copy and paste into RStudio to run your app.
+The code necessary to run this app successfully:
+```shiny::runGitHub(repo = "ambrinza/st558_final_project")```
+
