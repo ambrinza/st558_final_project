@@ -95,39 +95,41 @@ shinyServer(function(input, output) {
                    preProcess = c("center", "scale"))
       # Increment the progress bar, and update the detail text.
       incProgress(1/3, detail = "Finished training Logistic Regression")
-      fit_rf <- train(Is.Adopted ~ ., data = df_train_select, method
-                   = "rf", trControl = trainControl(method = "cv", number = 5),
-                   preProcess = c("center", "scale"))
+      # fit_rf <- train(Is.Adopted ~ ., data = df_train_select, method
+      #              = "rf", trControl = trainControl(method = "cv", number = 5),
+      #              preProcess = c("center", "scale"))
       incProgress(2/3, detail = "Finished training Random Forest")
       fit_bt <- train(Is.Adopted ~ ., data = df_train_select, method
                    = "gbm", trControl = trainControl(method = "cv", number = 5),
                    preProcess = c("center", "scale"), verbose = FALSE)
     })
-    list(fit_lr = fit_lr, fit_rf = fit_rf, fit_bt = fit_bt)
+    # list(fit_lr = fit_lr, fit_rf = fit_rf, fit_bt = fit_bt)
+    list(fit_lr = fit_lr, fit_bt = fit_bt)
   })
   
   output$fit_statistics <- renderTable({
     .tmp <- model_fits()
     fit_lr <- .tmp$fit_lr
-    fit_rf <- .tmp$fit_rf
+    # fit_rf <- .tmp$fit_rf
     fit_bt <- .tmp$fit_bt
     fit_lr_res <- cbind(method = "Logistic Regression",fit_lr$results)
-    fit_rf_res <- cbind(method ="Random Forest", fit_rf$results %>% slice_max(Accuracy, n=1) %>%
-                            rename(parameter = mtry))
+    # fit_rf_res <- cbind(method ="Random Forest", fit_rf$results %>% slice_max(Accuracy, n=1) %>%
+    #                         rename(parameter = mtry))
     fit_bt_res <- cbind(method = "Boosting", fit_bt$results %>% slice_max(Accuracy, n=1) %>%
                             select(n.trees,Accuracy, Kappa, AccuracySD, KappaSD) %>%
                             rename(parameter = n.trees))
-    rbind(fit_lr_res, fit_rf_res, fit_bt_res)
+    # rbind(fit_lr_res, fit_rf_res, fit_bt_res)
+    rbind(fit_lr_res, fit_bt_res)
   })
 
-  output$var_imp_rf <- renderPlot({
-    .tmp <- model_fits()
-    fit_rf <- .tmp$fit_rf
-    plot(varImp(fit_rf))
-  })
+  # output$var_imp_rf <- renderPlot({
+  #   .tmp <- model_fits()
+  #   fit_rf <- .tmp$fit_rf
+  #   plot(varImp(fit_rf))
+  # })
   output$var_imp_bt <- renderPlot({
     .tmp <- model_fits()
-    fit_bt <- .tmp$fit_rf
+    fit_bt <- .tmp$fit_bt
     plot(varImp(fit_bt))
   })
 
@@ -152,17 +154,36 @@ shinyServer(function(input, output) {
   output$fit_statistics_test <- renderTable({
     .tmp <- model_fits()
     fit_lr <- .tmp$fit_lr
-    fit_rf <- .tmp$fit_rf
+    # fit_rf <- .tmp$fit_rf
     fit_bt <- .tmp$fit_bt
     cm_lr <-  confusionMatrix(data = df_test_select$Is.Adopted, 
                               reference = predict(fit_lr, newdata = df_test_select))
-    cm_rf <-  confusionMatrix(data = df_test_select$Is.Adopted, 
-                              reference = predict(fit_lr, newdata = df_test_select))
+    # cm_rf <-  confusionMatrix(data = df_test_select$Is.Adopted, 
+    #                           reference = predict(fit_rf, newdata = df_test_select))
     cm_bt <-  confusionMatrix(data = df_test_select$Is.Adopted, 
-                              reference = predict(fit_lr, newdata = df_test_select))
-    rbind(cbind(method = "Logistic Regression", cm_lr$byClass),
-          cbind(method = "Random Forest", cm_rf$byClass),
-          cbind(method = "Boosting Trees", cm_bt$byClass))
+                              reference = predict(fit_bt, newdata = df_test_select))
+    rbind(cbind(method = "Logistic Regression", t(round(cm_lr$byClass,2))),
+          # cbind(method = "Random Forest", cm_rf$byClass),
+          cbind(method = "Boosting Trees", t(round(cm_bt$byClass,2))))
+  })
+  
+  output$prediction <- renderTable({
+    .tmp <- model_fits()
+    fit_lr <- .tmp$fit_lr
+    # fit_rf <- .tmp$fit_rf
+    fit_bt <- .tmp$fit_bt
+    pred_vals <- data.frame("Sex.upon.Outcome" = input$sex_val,
+                            "Age" = input$age_value,
+                            "Year" = input$year_val, 
+                            "Month" = input$month_val, 
+                            "Animal.Type" = input$animal_type)
+    pred_vals <- pred_vals[,input$predictors]
+    pred_lr <- predict(fit_lr,newdata = pred_vals)
+    # pred_rf <- predict(fit_rf, newdata = pred_vals)
+    pred_bt <- predict(fit_bt, newdata = pred_vals)
+    rbind(cbind(method = "Logistic Regression", prediction = pred_lr),
+          # cbind(method = "Random Forest", prediction = pred_rf),
+          cbind(method = "Boosting Trees", prediction = pred_bt))
   })
     
   

@@ -94,8 +94,6 @@ shinyUI(fluidPage(
              tabPanel("Modelling",
                       sidebarLayout(
                         sidebarPanel(
-                          conditionalPanel(condition = "input$main_panel_models == 2 |
-                                           input$main_panel_models == 3",
                             h4("Model Specifications"),
                             numericInput("train_prop", "Training Proportion", min = 0, max = 99,
                                          value = 80),
@@ -103,11 +101,24 @@ shinyUI(fluidPage(
                                                 choices = list("Animal.Type", "Month", "Year",
                                                                "Sex.upon.Outcome", "Age")),
                             actionButton("model_run", "Run Model"),
-                            conditionalPanel(condition = "input$main_panel_models == 3",
-                                             h4("Select Predictor Values for Prediction"),
-                                conditionalPanel(condition = "'Age' %in% input$predictors"),
-                                numericInput("age_value", "Insert Age", min = 0, max = 30,
-                                             value = 1))
+                            conditionalPanel(condition = "input.main_panels_models == 3",
+                            h4("Select Predictor Values for Prediction"),
+                            conditionalPanel(condition = "input.predictors.includes('Age')",
+                                  numericInput("age_value", "Insert Age", min = 0, max = 30,
+                                             value = 1)),
+                            conditionalPanel(condition = "input.predictors.includes('Animal.Type')",
+                                   selectInput("animal_type", "Choose an animal",
+                                    choices = list("Cat", "Dog", "Other", "Bird", "Livestock"))),
+                            conditionalPanel(condition = "input.predictors.includes('Month')",
+                                    numericInput("month_val", "Input a month", min = 1, max = 12,
+                                                 value = 1)),
+                            conditionalPanel(condition = "input.predictors.includes('Year')",
+                                    numericInput("year_val", "Input a year", min = 2013, max = 2022,
+                                                 val = 2013)),
+                            conditionalPanel(condition = "input.predictors.includes('Sex.upon.Outcome')",
+                                    selectInput("sex_val", "Choose a sex type", 
+                                                choices = list("Neutered Male", "Spayed Female", "Intact Female"
+                                                               ,"Intact Male", "Unknown")))
                             ))
                         ,
                         mainPanel(
@@ -158,31 +169,25 @@ shinyUI(fluidPage(
                                                h4("Fit Statistics From Training Data"),
                                                tableOutput("fit_statistics"),
                                                fluidRow(h4("Variable Importance Plots"),
-                                                 column(width = 6,
-                                                        "Random Forest",
-                                                        plotOutput("var_imp_rf")),
+                                                 # column(width = 6,
+                                                 #        "Random Forest",
+                                                 #        plotOutput("var_imp_rf")),
                                                  column(width = 6,
                                                         "Boosting Trees",
                                                         plotOutput("var_imp_bt"))
                                                ),
-                                               # fluidRow(
-                                               #   column(width = 5,
-                                               #          h4("Logistic Regression Confusion Matrix"),
-                                               #          verbatimTextOutput("cm_lr")),
-                                               #   column(width = 5,
-                                               #          h4("Random Forest Confusion Matrix"),
-                                               #          verbatimTextOutput("cm_rf")),
-                                               #   column(width = 5,
-                                               #          h4("Boosting Trees Confusion Matrix"),
-                                               #          verbatimTextOutput("cm_bt"))
                                                h4("Test Fit Statistics"),
-                                               renderTable("fit_statistics_test"),
-                                               value = 2),
-                                      tabPanel("Prediction"),
+                                               tableOutput("fit_statistics_test")
+                                               ),
+                                      tabPanel("Prediction",
+                                               h4("Predicted Outcome using User Selections"),
+                                               tableOutput("prediction"),
+                                               value = 3),
                                       id = "main_panels_models")
                       )
                       )
-                      ),
+             )
+                      ,
              tabPanel("Data")
   )
   # Application title
