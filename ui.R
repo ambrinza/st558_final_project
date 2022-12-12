@@ -108,7 +108,7 @@ shinyUI(fluidPage(
                                              value = 1)),
                             conditionalPanel(condition = "input.predictors.includes('Animal.Type')",
                                    selectInput("animal_type", "Choose an animal",
-                                    choices = list("Cat", "Dog", "Other", "Bird", "Livestock"))),
+                                    choices = list("Cat", "Dog", "Other", "Bird"))),
                             conditionalPanel(condition = "input.predictors.includes('Month')",
                                     numericInput("month_val", "Input a month", min = 1, max = 12,
                                                  value = 1)),
@@ -169,9 +169,9 @@ shinyUI(fluidPage(
                                                h4("Fit Statistics From Training Data"),
                                                tableOutput("fit_statistics"),
                                                fluidRow(h4("Variable Importance Plots"),
-                                                 # column(width = 6,
-                                                 #        "Random Forest",
-                                                 #        plotOutput("var_imp_rf")),
+                                                 column(width = 6,
+                                                        "Random Forest",
+                                                        plotOutput("var_imp_rf")),
                                                  column(width = 6,
                                                         "Boosting Trees",
                                                         plotOutput("var_imp_bt"))
@@ -188,7 +188,15 @@ shinyUI(fluidPage(
                       )
              )
                       ,
-             tabPanel("Data")
+             tabPanel("Data",
+                      sidebarLayout(
+                        uiOutput("sidebar_output"),
+                        mainPanel(
+                          tableOutput("dataframe")
+                        )
+                      )
+                      
+             )
   )
   # Application title
   # titlePanel("Exploring Austin Animal Shelter Data"),
