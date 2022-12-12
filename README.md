@@ -21,6 +21,8 @@ install.packages(pkgs)
 ```
 
 # Code to Run
-The code necessary to run this app successfully:
-```shiny::runGitHub(repo = "ambrinza/st558_final_project")```
+The code necessary to run this app successfully:   
+```
+shiny::runGitHub(repo = "ambrinza/st558_final_project")
+```
 
