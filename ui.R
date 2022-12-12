@@ -37,20 +37,20 @@ shinyUI(fluidPage(
                           h3("Select the types of summaries you would like to display"),
                           selectInput("summary_choice", "Types of Summaries", 
                                       choices = list("Bar Plot", "Histogram")),
-                          selectInput("table_choice", "Types of Tables",
-                                      choices = list("Contingency", "Numeric Summary")),
                           # Only show this panel if the user selects "Bar Plot"
                           conditionalPanel(condition = "input.summary_choice == 'Bar Plot'",
                                            selectInput("graph_options", "What variable would you like to see?",
-                                                       choices = list("Outcome.Type", "Animal.Type", 
+                                                       choices = list("Outcome.Type", "Animal.Type",
                                                                       "Color", "Breed", "Sex.upon.Outcome")),
                                            sliderInput("category_count", "Choose how many categories to see",
                                                        value = 7, min = 3, max = 10),#FIXME to be dynamic UGH
-                                           selectInput("grouping_options", "What variable would you 
-                                                       like to color code by?", 
-                                                       choices = list("None","Outcome.Type", "Animal.Type", 
-                                                                       "Color", "Breed", "Sex.upon.Outcome"))), 
-                          conditionalPanel(condition = "input.table_choice == 'Numeric Summary",
+                                           selectInput("grouping_options", "What variable would you
+                                                       like to color code by?",
+                                                       choices = list("None","Outcome.Type", "Animal.Type",
+                                                                       "Color", "Breed", "Sex.upon.Outcome"))),
+                          selectInput("table_choice", "Types of Tables",
+                                      choices = list("Contingency", "Numeric Summary")),
+                          conditionalPanel(condition = "input.table_choice == 'Numeric Summary'",
                                            selectInput("numeric_sum","How would you like to view 
                                                        the Age variable?",
                                                        choices = list("Overall", "Animal.Type", "Outcome.Type", 
@@ -60,37 +60,93 @@ shinyUI(fluidPage(
                                            radioButtons("cont_table", "What type of contingency table?",
                                                        choices = list("One-Way", "Two-Way")),
                           conditionalPanel(condition = "input.cont_table == 'One-Way'",
-                                           selectInput("one_way", "What variable would you 
-                                                       like to summarize?", 
-                                                       choices = list("Animal.Type", "Outcome.Type", 
+                                           selectInput("one_way", "What variable would you
+                                                       like to summarize?",
+                                                       choices = list("Animal.Type", "Outcome.Type",
                                                                       "Outcome.Subtype", "Sex.upon.Outcome",
-                                                                      "Color", "Breed")),
+                                                                      "Color", "Breed"))
                                            ),
                           conditionalPanel(condition = "input.cont_table == 'Two-Way'",
-                                           selectInput("two_way_1", "What is the first variable you 
-                                                       would like to summarize?", 
+                                           selectInput("two_way_1", "What is the first variable you
+                                                       would like to summarize?",
                                                        choices = list("Outcome.Type", "Outcome.Subtype",
                                                                       "Animal.Type", "Sex.upon.Outcome",
                                                                       "Color", "Breed")),
-                                           selectInput("two_way_2", "What is the second variable you 
-                                                       would like to summarize?", 
-                                                       choices = list("Animal.Type", "Outcome.Type", 
+                                           selectInput("two_way_2", "What is the second variable you
+                                                       would like to summarize?",
+                                                       choices = list("Animal.Type", "Outcome.Type",
                                                                       "Outcome.Subtype", "Sex.upon.Outcome",
                                                                       "Color", "Breed"))))
                           ),
                         mainPanel(
-                          # Plot bar plot
-                          plotOutput("bar_plot"),
+                          # Plot the graph
+                          conditionalPanel(condition = "input.summary_choice == 'Bar Plot'",
+                                             plotOutput("bar_plot")),
+                          conditionalPanel(condition = "input.summary_choice == 'Histogram'",
+                                           plotOutput("histogram")),
                           # Plot summary table
                           conditionalPanel(condition = "input.table_choice == 'Contingency'",
                                           tableOutput("cont_table")),
                           conditionalPanel(condition = "input.table_choice == 'Numeric Summary'",
                                            dataTableOutput("numeric_sum"))
-                        )
-                      ) ),
-             tabPanel("Modelling"),
+                        ))
+                      ),
+             tabPanel("Modelling",
+                        mainPanel(
+                          h3("Modelling Info"),
+                          "In this section, we will explore three different
+                          supervised learning models.",
+                          h4("Logistic Regression"),
+                          "The first model will be a classic logistic regression model in order to predict
+                          the adoption outcome. In order to make the model more manageable,
+                          it will focus on only two outcomes - adoption or transfer, where adoption will
+                          be considered to be the 'success'. Logistic regression works by 
+                          The benefits of a logistic regression model is that it
+                          is low-cost for running, easier to interpret than some of the other classification models
+                          . The drawbacks are that logistic regression requires a lot of assumptions about 
+                          the data and its distribution, which might not necessarily be met. In addition, any other
+                          categorical variables need to be one-hot encoded, additional data cleaning that is not
+                          necessary for every other model.", #FIXME - check if this is true
+                          h4("Random Forest"),
+                          "The next model will be a random forest model. Random forest is an extension of
+                          a bagged classification model, where it creates multiple trees from bootstrap samples,
+                          but it only uses a subset of predictors for each tree. The benefits of random forest
+                          is that it does not rely on the assumptions that logistic regression does, and if there
+                          is a feature that has a high correlation with the outcome variable, the random forest
+                          method accounts for that using the predictor subsetting method, meaning the resulting
+                          trees will a higher reduction in variance overall, resulting in better predictions. The
+                          drawbacks of random forest are that it is less interpretable than logistic regression
+                          or a single tree, since trees are aggregated together, and it takes a higher computing
+                          power.", #FIXME - add in math
+                          h4("Boosting Trees"),
+                          "The last classification model considered is a boosting tree model. Boosting trees work 
+                          by first creating one classification tree, and then grow trees sequentially from that, 
+                          updating predictions as the trees grow. This often works better than random forest and
+                          bagging since the trees are grown in a sequence. A drawback of boosting is, similar to
+                           random forest, the results are less interpretable and it requires a higher computing
+                          power." #FIXME - add in math
+                        ),
+                      # sidebarLayout(
+                      #   sidebarPanel(
+                      #     h4("<Model Specifications"),
+                      #     numericInput("train_prop", "Training Proportion", min = 0, max = 99,
+                      #                  value = 80),
+                      #     selectInput("model_choice","Choose a model", 
+                      #                 choices = list("Logistic Regression", "Random Forest",
+                      #                                "Boosting Trees")),
+                      #     
+                      #     checkboxGroupInput("predictors","Select the predictor variables",
+                      #                         choices = list("Animal.Type")) #FIXME - make this based on the data)
+                      #                      )
+                      #   #FIXME - Add button to make it run
+                      #   ,
+                      #   mainPanel(
+                      #   )
+                      # )
+                      )
+                      ),
              tabPanel("Data")
-  ),
+  )
   # Application title
   # titlePanel("Exploring Austin Animal Shelter Data"),
   # sidebarLayout(
@@ -100,4 +156,4 @@ shinyUI(fluidPage(
   #   )
   # )
   
-))
+)

@@ -4,7 +4,7 @@ library(tidyverse)
 
 df <- read.csv('data/Austin_Animal_Center_Outcomes.csv')
 
-# Cleaning the data before it will be used in the shiny app
+# Cleaning the data before it will be used in the shiny app for EDA
 
 df <- df %>% 
   mutate(Name = gsub("\\*", "",Name), 
@@ -12,6 +12,11 @@ df <- df %>%
          Age = ifelse(grepl("month",Age.upon.Outcome), 0,as.numeric(sub(" .*", "", Age.upon.Outcome)))) %>%
   separate(MonthYear, c("Month", "Year"))  %>%  filter(Name != "", Age >= 0, Outcome.Type != "",
                                                        Sex.upon.Outcome != "NULL")
+
+# Cleaning the data for modelling
+df_models <- df %>% 
+  filter(Outcome.Type %in% c("Adoption", "Transfer")) %>%
+  mutate(Is.Adopted = ifelse(Outcome.Type == "Adoption", 1, 0)) #FIXME
 
 shinyServer(function(input, output) {
   # Create bar plot based on selection
@@ -66,6 +71,39 @@ shinyServer(function(input, output) {
     }
     
   })
-    
+  
+  # # Finding the index for the training split based on user input
+  # train_index <- createDataPartition(df_models$Is.Adopted, times = 1, p = get(input$train_prop))
+  # 
+  # # Splitting the data
+  # df_train <- df_models[train_index,]
+  # df_test  <- df_models[-train_index,]
+  # 
+  # # Fitting the relevant model
+  # if(input$model_choice == "Logistic Regression"){
+  #   # Dummify the relevant variables #FIXME - how to do this only for cat vars?
+  #   dummies <- dummyVars(get(input$predictors), data = df_train)
+  #   df_dmy <- data.frame(predict(dummies, newdata = df_train))
+  #   df_log_reg <- cbind(df_dmy, df_train) %>% select(-get(input$predictors))
+  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_log_reg,
+  #                method = "glm", trControl = trainControl(method = "cv", number = 5), 
+  #                preProcess = c("center", "scale")) #FIXME - right method
+  # } else if(input$model_choice == "Random Forest"){
+  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_train, method
+  #                = "rf", trControl = trainControl(method = "cv", number = 5), 
+  #                preProcess = c("center", "scale"))
+  # } else if(input$model_choice == "Boosted Trees"){
+  #   fit <- train(Is.Adopted ~ get(input$predictors), data = df_train, method
+  #                = "gbm", trControl = trainControl(method = "cv", number = 5), 
+  #                preProcess = c("center", "scale"))
+  # }
+  # 
+  # output$fit_statistics_train <- renderDataTable({
+  #   summary(fit)
+  # })
+  # output$confusion_matrix <- renderDataTable({
+  #   # Now checking performance of the model
+  #   confusionMatrix(data = df_test$Is.Adopted, reference = predict(fit, newdata = df_test))
+  # })
   
 })
