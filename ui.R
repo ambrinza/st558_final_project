@@ -28,7 +28,7 @@ shinyUI(fluidPage(
                                   you will be able to see how they perform and create some predictions from the 
                                   models. The last section is the 'Data' section, where you can scroll through
                                   the data set, subset it if you so desire, and export the data.",
-                                  img(src='images/soup.JPEG', align = "right")
+                                  img(src='images/soup.JPEG', align = "left")
                         
                       )),
              tabPanel("Data Exploration",
